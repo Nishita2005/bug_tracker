@@ -1,5 +1,8 @@
 <?php
-require_once "config/db.php";
+// 1. Connect to the database
+require_once('db/db.php');
 
-echo "Bug Tracker connected to database!";
+// 2. Redirect the user to the login page
+header("Location: auth/login.php");
+exit();
 ?>

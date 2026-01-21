@@ -7,85 +7,78 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'tester') {
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
+$tester_id = $_SESSION['user_id'];
 
-// Fetch projects for the report form
-$projects = mysqli_query($conn, "SELECT id, project_name FROM projects");
+// Handle Bug Submission
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['report_bug'])) {
+    $title = mysqli_real_escape_string($conn, $_POST['title']);
+    $desc = mysqli_real_escape_string($conn, $_POST['description']);
+    $proj_id = $_POST['project_id'];
+    $priority = $_POST['priority'];
 
-// Fetch bugs reported by THIS tester
-$my_bugs = mysqli_query($conn, "SELECT i.*, p.project_name 
-                                FROM issues i 
-                                JOIN projects p ON i.project_id = p.id 
-                                WHERE i.created_by = '$user_id' 
-                                ORDER BY i.created_at DESC");
+    // Now including reported_by
+    $sql = "INSERT INTO issues (project_id, title, description, priority, status, reported_by) 
+            VALUES ('$proj_id', '$title', '$desc', '$priority', 'open', '$tester_id')";
+    mysqli_query($conn, $sql);
+}
+
+// Fetch only this tester's bugs
+$my_bugs = mysqli_query($conn, "SELECT i.*, p.project_name FROM issues i 
+                                LEFT JOIN projects p ON i.project_id = p.id 
+                                WHERE i.reported_by = '$tester_id'");
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Tester Dashboard</title>
+    <title>Tester Panel</title>
     <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
     <div class="sidebar">
         <h2>BugTracker</h2>
-        <p>Tester: <?php echo $_SESSION['user_id']; ?></p>
-        <hr>
-        <a href="tester.php">My Reports</a>
+        <p>Tester: <?php echo $tester_id; ?></p><hr>
+        <a href="tester.php" class="active">My Reports</a>
         <a href="../auth/logout.php" style="color: #ff4d4d;">Logout</a>
     </div>
 
     <div class="main-content">
-        <header><h1>Tester Panel</h1></header>
-
+        <h1>Tester Panel</h1>
         <div class="card">
-            <h3>Report New Bug</h3>
-            <form action="submit_issue.php" method="POST">
-                <input type="text" name="title" placeholder="Short Title" required style="width: 100%; margin-bottom: 10px;">
-                <textarea name="description" placeholder="Steps to reproduce the bug..." required style="width: 100%; height: 60px;"></textarea>
-                
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <select name="project_id" required>
-                        <option value="">Select Project</option>
-                        <?php while($p = mysqli_fetch_assoc($projects)) { ?>
-                            <option value="<?php echo $p['id']; ?>"><?php echo $p['project_name']; ?></option>
-                        <?php } ?>
-                    </select>
-                    
-                    <select name="priority">
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                    </select>
-                    <button type="submit" class="btn-small" style="background: #27ae60;">Submit Bug</button>
-                </div>
+            <form method="POST">
+                <input type="text" name="title" placeholder="Short Title" required style="width:100%; margin-bottom:10px;">
+                <textarea name="description" placeholder="Steps to reproduce..." required style="width:100%; height:80px; margin-bottom:10px;"></textarea>
+                <select name="project_id" required>
+                    <option value="1">Bug Tracker System</option>
+                    <option value="2">Student Portal</option>
+                </select>
+                <select name="priority">
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+                <button type="submit" name="report_bug" class="btn-small" style="background:#27ae60; color:white;">Submit Bug</button>
             </form>
         </div>
 
-        <div class="card" style="margin-top: 20px;">
+        <div class="card" style="margin-top:20px;">
             <h3>My Reported Bugs</h3>
             <table>
-                <tr>
-                    <th>Project</th>
-                    <th>Issue</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-                <?php while($row = mysqli_fetch_assoc($my_bugs)) { ?>
-                <tr>
-                    <td><?php echo $row['project_name']; ?></td>
-                    <td><a href="view_issue.php?id=<?php echo $row['id']; ?>"><strong><?php echo $row['title']; ?></strong></a></td>
-                    <td><span class="badge <?php echo $row['priority']; ?>"><?php echo $row['status']; ?></span></td>
-                    <td>
-                        <?php if($row['status'] == 'fixed') { ?>
-                            <form action="close_issue.php" method="POST">
-                                <input type="hidden" name="issue_id" value="<?php echo $row['id']; ?>">
-                                <button type="submit" class="btn-small" style="background: #8e44ad;">Close & Verify</button>
-                            </form>
-                        <?php } else { echo "Waiting for Fix"; } ?>
-                    </td>
-                </tr>
-                <?php } ?>
+                <thead><tr><th>Project</th><th>Issue</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>
+                    <?php while($row = mysqli_fetch_assoc($my_bugs)) { ?>
+                    <tr>
+                        <td><?php echo $row['project_name']; ?></td>
+                        <td><?php echo $row['title']; ?></td>
+                        <td><span class="badge <?php echo $row['status']; ?>"><?php echo strtoupper($row['status']); ?></span></td>
+                        <td>
+                            <?php if($row['status'] == 'fixed') { ?>
+                                <a href="close_process.php?id=<?php echo $row['id']; ?>" class="btn-small" style="background:#2c3e50; color:white;">Close Bug</a>
+                            <?php } else { echo "Pending"; } ?>
+                        </td>
+                    </tr>
+                    <?php } ?>
+                </tbody>
             </table>
         </div>
     </div>
