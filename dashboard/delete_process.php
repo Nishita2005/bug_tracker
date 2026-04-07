@@ -2,31 +2,23 @@
 session_start();
 include('../db/db.php');
 
-// Security Check
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    die("Unauthorized access.");
-}
+if (isset($_GET['id'])) {
+    $issue_id = mysqli_real_escape_string($conn, $_GET['id']);
+    $user_id = $_SESSION['user_id'];
 
-if (isset($_GET['id']) && isset($_GET['type'])) {
-    $id = mysqli_real_escape_string($conn, $_GET['id']);
-    $type = $_GET['type'];
-
-    if ($type == 'user') {
-        // Prevent deleting the currently logged-in admin
-        if ($id == $_SESSION['user_id']) {
-            die("You cannot delete your own account.");
-        }
-        $sql = "DELETE FROM users WHERE id = '$id'";
-    } elseif ($type == 'project') {
-        $sql = "DELETE FROM projects WHERE id = '$id'";
-    }
-
+    // Update status to 'closed'
+    $sql = "UPDATE issues SET status = 'closed' WHERE id = '$issue_id'";
+    
     if (mysqli_query($conn, $sql)) {
-        // Redirect back to the previous page
-        header("Location: " . $_SERVER['HTTP_REFERER']);
+        // Log the final closure in history
+        $action = "Bug officially CLOSED by Admin";
+        $history_sql = "INSERT INTO bug_history (issue_id, action_taken, changed_by) 
+                        VALUES ('$issue_id', '$action', '$user_id')";
+        mysqli_query($conn, $history_sql);
+
+        header("Location: admin.php?closed=1");
         exit();
-    } else {
-        echo "Error deleting record: " . mysqli_error($conn);
     }
 }
+header("Location: admin.php");
 ?>

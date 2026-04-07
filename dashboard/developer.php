@@ -7,8 +7,9 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'developer') {
     exit();
 }
 
-$developer_id = $_SESSION['user_id']; // This must match assigned_to in the DB
+$developer_id = $_SESSION['user_id'];
 
+// Fetch issues assigned to this dev that aren't closed
 $query = "SELECT i.*, p.project_name 
           FROM issues i 
           LEFT JOIN projects p ON i.project_id = p.id 
@@ -21,8 +22,16 @@ $result = mysqli_query($conn, $query);
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Developer Dashboard</title>
+    <meta charset="UTF-8">
+    <title>Developer Dashboard | BugTracker</title>
     <link rel="stylesheet" href="../assets/style.css">
+    <style>
+        .status-badge { padding: 4px 10px; border-radius: 4px; color: white; font-size: 0.85em; font-weight: bold; display: inline-block; min-width: 80px; text-align: center; }
+        .bg-open { background-color: #f39c12; }
+        .bg-inprogress { background-color: #3498db; }
+        .bg-fixed { background-color: #27ae60; }
+        .success-msg { background: #d4edda; color: #155724; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #c3e6cb; }
+    </style>
 </head>
 <body>
     <div class="sidebar">
@@ -34,6 +43,11 @@ $result = mysqli_query($conn, $query);
 
     <div class="main-content">
         <h1>My Assigned Tasks</h1>
+        
+        <?php if(isset($_GET['success'])): ?>
+            <div class="success-msg">✔ Status updated successfully!</div>
+        <?php endif; ?>
+
         <div class="card">
             <table>
                 <thead>
@@ -43,22 +57,30 @@ $result = mysqli_query($conn, $query);
                 </thead>
                 <tbody>
                     <?php if(mysqli_num_rows($result) > 0) { 
-                        while($row = mysqli_fetch_assoc($result)) { ?>
+                        while($row = mysqli_fetch_assoc($result)) { 
+                            // Normalize status for logic and CSS
+                            $db_status = !empty($row['status']) ? strtolower(trim($row['status'])) : 'open';
+                            $status_class = "bg-" . str_replace(' ', '', $db_status);
+                        ?>
                         <tr>
                             <td>#<?php echo $row['id']; ?></td>
-                            <td><?php echo htmlspecialchars($row['project_name']); ?></td>
+                            <td><strong><?php echo htmlspecialchars($row['project_name']); ?></strong></td>
                             <td><?php echo htmlspecialchars($row['title']); ?></td>
                             <td><span class="badge <?php echo $row['priority']; ?>"><?php echo strtoupper($row['priority']); ?></span></td>
-                            <td style="font-weight:bold; color:#2c3e50;"><?php echo strtoupper($row['status']); ?></td>
+                            <td>
+                                <span class="status-badge <?php echo $status_class; ?>">
+                                    <?php echo strtoupper($db_status); ?>
+                                </span>
+                            </td>
                             <td>
                                 <form action="update_status.php" method="POST" style="display:flex; gap:5px;">
                                     <input type="hidden" name="issue_id" value="<?php echo $row['id']; ?>">
-                                    <select name="new_status">
-                                        <option value="open" <?php if($row['status'] == 'open') echo 'selected'; ?>>Open</option>
-                                        <option value="in progress" <?php if($row['status'] == 'in progress') echo 'selected'; ?>>In Progress</option>
-                                        <option value="fixed" <?php if($row['status'] == 'fixed') echo 'selected'; ?>>Fixed</option>
+                                    <select name="new_status" style="padding: 4px;">
+                                        <option value="open" <?php echo ($db_status == 'open') ? 'selected' : ''; ?>>Open</option>
+                                        <option value="inprogress" <?php echo ($db_status == 'inprogress') ? 'selected' : ''; ?>>In Progress</option>
+                                        <option value="fixed" <?php echo ($db_status == 'fixed') ? 'selected' : ''; ?>>Fixed</option>
                                     </select>
-                                    <button type="submit" class="btn-small">Update</button>
+                                    <button type="submit" class="btn-small" style="cursor:pointer;">Update</button>
                                 </form>
                             </td>
                         </tr>

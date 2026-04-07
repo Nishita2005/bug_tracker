@@ -50,3 +50,8 @@ th { background-color: #f8f9fa; color: #333; font-weight: 600; }
 .bg-progress { background: #3498db; }
 .bg-fixed { background: #27ae60; }
 .bg-closed { background: #95a5a6; }
+/* Matching the lowercase names from the update script */
+.badge.open { background-color: #f39c12; color: white; padding: 5px; }
+.badge.inprogress { background-color: #3498db; color: white; padding: 5px; }
+.badge.fixed { background-color: #27ae60; color: white; padding: 5px; }
+.badge.closed { background-color: #2c3e50; color: white; padding: 5px; }
